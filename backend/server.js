@@ -126,7 +126,7 @@ app.get("/api/jobs/:id", async (req, res) => {
 });
 
 // PATCH /jobs/:id/status — update job status (state machine)
-const VALID_STATUSES = ["NEW", "SAVED", "APPLIED", "INTERVIEW", "OFFER", "REJECTED", "WITHDRAWN"];
+const VALID_STATUSES = ["NEW", "REVIEWED", "COVER_LETTER_GENERATED", "COVER_LETTER_SAVED", "SAVED", "APPLIED", "INTERVIEW", "OFFER", "REJECTED", "WITHDRAWN"];
 
 app.patch(["/jobs/:id/status", "/api/jobs/:id/status"], async (req, res) => {
   try {
