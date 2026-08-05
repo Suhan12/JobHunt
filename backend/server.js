@@ -255,7 +255,7 @@ STRICT RULES:
     // Update job status
     await prisma.jobPosting.update({
       where: { id: job.id },
-      data: { status: "APPLIED" },
+      data: { status: "COVER_LETTER_GENERATED" },
     });
 
     res.json({
@@ -278,8 +278,40 @@ const { Document, Paragraph, TextRun, Packer, AlignmentType, HeadingLevel, conve
 
 app.post(["/generate-docx", "/api/generate-docx"], async (req, res) => {
   try {
-    const { coverLetter, candidateName, jobTitle, company } = req.body;
+    const { coverLetter, candidateName, jobTitle, company, jobId } = req.body;
     if (!coverLetter) return res.status(400).json({ error: "coverLetter text is required" });
+
+    // Persist edited cover letter to database if jobId provided
+    if (jobId) {
+      try {
+        const existingApp = await prisma.application.findFirst({
+          where: { jobPostingId: jobId },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (existingApp) {
+          await prisma.application.update({
+            where: { id: existingApp.id },
+            data: { coverLetter },
+          });
+        } else {
+          await prisma.application.create({
+            data: {
+              coverLetter,
+              resume: "Master resume data.",
+              jobPostingId: jobId,
+            },
+          });
+        }
+
+        await prisma.jobPosting.update({
+          where: { id: jobId },
+          data: { status: "COVER_LETTER_SAVED" },
+        });
+      } catch (dbErr) {
+        console.error("Warning: DB save failed during docx generation:", dbErr.message);
+      }
+    }
 
     const name = candidateName || "Suhan Gautam";
     const lines = coverLetter.split("\n").filter((l) => l.trim().length > 0);

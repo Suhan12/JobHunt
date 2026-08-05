@@ -125,6 +125,19 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
         final body = r.body.trim();
         if (r.statusCode == 200 && !body.startsWith('<')) {
           final data = jsonDecode(body) as List;
+          // Hydrate cover letters from saved applications
+          for (final job in data) {
+            final jobId = job['id'] as String;
+            final apps = job['applications'] as List? ?? [];
+            if (apps.isNotEmpty) {
+              final latestLetter = apps.last['coverLetter'] as String? ?? '';
+              if (latestLetter.isNotEmpty && !_coverLetters.containsKey(jobId)) {
+                _coverLetters[jobId] = latestLetter;
+                _coverLetterControllers[jobId]?.dispose();
+                _coverLetterControllers[jobId] = TextEditingController(text: latestLetter);
+              }
+            }
+          }
           setState(() { _jobs = data; _isLoading = false; });
           return;
         }
@@ -200,6 +213,7 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
         Uri.parse('$_cleanBase/generate-docx'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
+          'jobId': jobId,
           'coverLetter': controller.text,
           'candidateName': 'Suhan Gautam',
           'jobTitle': job['title'] ?? '',
