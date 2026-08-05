@@ -57,11 +57,8 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
     if (_customApiUrl.trim().isNotEmpty) {
       return _customApiUrl.trim().replaceAll(RegExp(r'/$'), '');
     }
-    // If running in browser and hosted on custom domain (like Render or Cloudflare with backend)
-    if (Uri.base.host.isNotEmpty && Uri.base.host != 'localhost') {
-      return Uri.base.origin;
-    }
-    return 'http://localhost:4000';
+    // Default directly to your live Render backend API URL
+    return 'https://jobhunt-zgyu.onrender.com';
   }
 
   void _showApiSettingsDialog() {
