@@ -24,6 +24,8 @@
     "google-it": "^1.6.4",
     "groq-sdk": "^1.5.0",
     "pdfjs-dist": "^4.10.38",
+    "playwright": "^1.62.1",
+    "playwright-extra": "^4.3.6",
     "puppeteer": "^24.9.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2"

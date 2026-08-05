@@ -24,6 +24,7 @@ jobs:
         run: |
           npm ci || npm install
           npm install --workspace=backend
+          npx playwright install chromium --with-deps || true
 
       - name: Generate Prisma Client
         env:
@@ -31,9 +32,18 @@ jobs:
         run: |
           npx prisma generate --schema=backend/prisma/schema.prisma
 
-      - name: Execute Scraper Engine
+      - name: Execute Multi-Board Scraper Engine
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
         run: |
           node backend/src/scrape.js
+
+      - name: Execute Seek Scraper Engine
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+        run: |
+          node backend/src/seek-scraper.js
