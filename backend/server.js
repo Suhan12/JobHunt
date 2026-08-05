@@ -173,11 +173,40 @@ app.post(["/generate", "/api/generate"], async (req, res) => {
 
     const hiringManager = await discoverHiringManager(job.company, job.description);
 
-    const systemPrompt = `You are a high-converting career consultant. You write hyper-targeted, ultra-concise cover letters. Your letters are short, impactful, and directly reference specific technologies or projects from the job description.`;
-    const userPrompt = `Write a targeted cover letter for this candidate applying to ${job.company}.
+    const systemPrompt = `You are an expert career coach writing a highly detailed, comprehensive, and professional cover letter. The candidate is a Data Analyst currently working at Sutherland Shire Council, holding a Master of Information Technology from UNSW. Their technical stack includes Flutter, Next.js, Node.js, Prisma, PostgreSQL, AWS, and Azure. Map these specific experiences directly to the provided job description. Ensure the output is a multi-paragraph, formal letter, not a brief summary.`;
+
+    const coverLetterTemplate = `REFERENCE TEMPLATE FORMAT (use this structure and tone as a guide):
+
+SUHAN GAUTAM
+☎ +61 0411 061 575 ✉ suhangautam@gmail.com 🔗 linkedin.com/in/suhan-gautam
+
+[Today's Date]
+
+[Hiring Contact Name or "Hiring Team"]
+[Company Name]
+[Location]
+
+Dear [Hiring Contact],
+
+[Opening paragraph: Express strong interest in the specific role. Mention your background in enterprise data migration, data quality frameworks, and stakeholder engagement. Connect your analytical mindset and technical expertise to the company's specific initiative described in the job posting.]
+
+[Second paragraph: Describe your current role at Sutherland Shire Council leading critical data extraction, profiling, and mapping activities. Mention decommissioning legacy systems, designing ETL processes, driving data quality improvement from 56% to 96%. Connect this directly to the job's technical requirements.]
+
+[Third paragraph: Highlight domain knowledge relevant to the role. Reference your work developing Elithia—an AI-powered compliance engine for the Australian aged care sector. Describe navigating healthcare data complexities, understanding clinical workflows, mapping unstructured data, and adhering to data privacy and governance standards.]
+
+[Fourth paragraph: Emphasize collaborative skills. Mention leading requirements workshops, defining enterprise data standards, providing internal application support, and improving data consistency, usability, and user adoption.]
+
+[Closing paragraph: Express enthusiasm for the company's mission. Mention willingness to relocate if applicable. Thank them and mention attached resume.]
+
+Best regards,
+Suhan Gautam`;
+
+    const userPrompt = `Write a comprehensive, multi-paragraph cover letter for this candidate applying to ${job.company}.
 
 CANDIDATE RESUME:
 ${resume}
+
+${coverLetterTemplate}
 
 JOB DETAILS:
 Title: ${job.title}
@@ -185,15 +214,21 @@ Company: ${job.company}
 Location: ${job.location || "Sydney"}
 Hiring Contact: ${hiringManager}
 
-Job Description Snippet:
-${job.description.substring(0, 1200)}
+Full Job Description:
+${job.description.substring(0, 3000)}
 
 STRICT RULES:
-1. GREETING: Start directly with "Dear ${hiringManager},"
-2. SPECIFIC HOOK: Reference at least one SPECIFIC requirement, tool, or project mentioned in the job description.
-3. LENGTH LIMIT: Keep the ENTIRE letter highly concise, STRICTLY between 200 and 400 characters total.
-4. TONE: Professional, confident, and direct.
-5. FORMAT: Plain text only, no placeholders.`;
+1. GREETING: Start with "Dear ${hiringManager},"
+2. HEADER: Include the candidate's contact info header (name, phone, email, LinkedIn) at the top, followed by today's date, then the company address block.
+3. STRUCTURE: Write 4-5 substantial paragraphs following the template structure above.
+4. SPECIFICITY: Reference at LEAST 3 specific requirements, tools, technologies, or projects from the job description and map them to the candidate's experience.
+5. TECHNICAL DEPTH: Mention specific technologies from the candidate's stack (Flutter, Next.js, Node.js, Prisma, PostgreSQL, AWS, Azure) where relevant to the job.
+6. DATA EXPERTISE: Highlight the candidate's data quality improvement achievement (56% to 96%) and ETL experience.
+7. ELITHIA PROJECT: Reference the Elithia AI compliance engine project if healthcare/aged care/compliance is relevant.
+8. TONE: Professional, confident, detailed, and enthusiastic.
+9. LENGTH: The letter should be 400-600 words minimum. This is NOT a brief note—it is a full professional cover letter.
+10. FORMAT: Plain text only, no markdown, no placeholders, no brackets.
+11. SIGN-OFF: End with "Best regards,\\nSuhan Gautam"`;
 
     const completion = await groq.chat.completions.create({
       model: MODEL,
@@ -201,8 +236,8 @@ STRICT RULES:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.6,
-      max_completion_tokens: 500,
+      temperature: 0.7,
+      max_completion_tokens: 2000,
     });
 
     const coverLetter = (completion.choices[0]?.message?.content || "").trim();
@@ -220,7 +255,7 @@ STRICT RULES:
     // Update job status
     await prisma.jobPosting.update({
       where: { id: job.id },
-      data: { status: "applied" },
+      data: { status: "APPLIED" },
     });
 
     res.json({
@@ -238,12 +273,107 @@ STRICT RULES:
   }
 });
 
+// POST /generate-docx — generate a formatted Word document from cover letter text
+const { Document, Paragraph, TextRun, Packer, AlignmentType, HeadingLevel, convertInchesToTwip } = require("docx");
+
+app.post(["/generate-docx", "/api/generate-docx"], async (req, res) => {
+  try {
+    const { coverLetter, candidateName, jobTitle, company } = req.body;
+    if (!coverLetter) return res.status(400).json({ error: "coverLetter text is required" });
+
+    const name = candidateName || "Suhan Gautam";
+    const lines = coverLetter.split("\n").filter((l) => l.trim().length > 0);
+
+    const children = [];
+
+    // Header: Candidate name
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 100 },
+        children: [
+          new TextRun({ text: name.toUpperCase(), bold: true, size: 28, font: "Calibri" }),
+        ],
+      })
+    );
+
+    // Contact info line (if present in first lines)
+    const contactLine = lines.find((l) => l.includes("@") || l.includes("☎") || l.includes("+61"));
+    if (contactLine) {
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [
+            new TextRun({ text: contactLine, size: 20, font: "Calibri", color: "555555" }),
+          ],
+        })
+      );
+    }
+
+    // Body paragraphs
+    for (const line of lines) {
+      if (line === contactLine) continue;
+      if (line.toUpperCase() === name.toUpperCase()) continue;
+
+      const isSignOff = line.startsWith("Best regards") || line.startsWith("Sincerely") || line.startsWith("Kind regards");
+      const isName = line.trim() === name;
+
+      children.push(
+        new Paragraph({
+          spacing: { after: isSignOff || isName ? 80 : 200 },
+          children: [
+            new TextRun({
+              text: line,
+              size: 22,
+              font: "Calibri",
+              bold: isName,
+            }),
+          ],
+        })
+      );
+    }
+
+    const doc = new Document({
+      sections: [
+        {
+          properties: {
+            page: {
+              margin: {
+                top: convertInchesToTwip(1),
+                bottom: convertInchesToTwip(1),
+                left: convertInchesToTwip(1),
+                right: convertInchesToTwip(1),
+              },
+            },
+          },
+          children,
+        },
+      ],
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    const filename = `${name.replace(/\s+/g, "_")}_${(company || "Cover").replace(/\s+/g, "_")}_Cover_Letter.docx`;
+
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Length": buffer.length,
+    });
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, async () => {
   try {
     await prisma.$connect();
     console.log(`✅ Server running on http://localhost:${PORT}`);
-    console.log(`   GET  /jobs      (sorted by priority_score desc)`);
-    console.log(`   POST /generate  (draft cover letter via Groq Llama 3.3)`);
+    console.log(`   GET    /jobs              (sorted by priority_score desc)`);
+    console.log(`   PATCH  /jobs/:id/status   (update job status)`);
+    console.log(`   POST   /generate          (draft cover letter via Groq Llama 3.3)`);
+    console.log(`   POST   /generate-docx     (export cover letter as Word .docx)`);
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
   }
