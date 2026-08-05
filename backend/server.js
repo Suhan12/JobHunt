@@ -125,6 +125,42 @@ app.get("/api/jobs/:id", async (req, res) => {
   }
 });
 
+// PATCH /jobs/:id/status — update job status (state machine)
+const VALID_STATUSES = ["NEW", "SAVED", "APPLIED", "INTERVIEW", "OFFER", "REJECTED", "WITHDRAWN"];
+
+app.patch(["/jobs/:id/status", "/api/jobs/:id/status"], async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: "status is required" });
+
+    const upperStatus = status.toUpperCase();
+    if (!VALID_STATUSES.includes(upperStatus)) {
+      return res.status(400).json({
+        error: `Invalid status '${status}'. Valid: ${VALID_STATUSES.join(", ")}`,
+      });
+    }
+
+    const job = await prisma.jobPosting.findUnique({ where: { id: req.params.id } });
+    if (!job) return res.status(404).json({ error: "Job posting not found" });
+
+    const updated = await prisma.jobPosting.update({
+      where: { id: req.params.id },
+      data: { status: upperStatus },
+    });
+
+    res.json({
+      success: true,
+      id: updated.id,
+      title: updated.title,
+      company: updated.company,
+      previousStatus: job.status,
+      newStatus: updated.status,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post(["/generate", "/api/generate"], async (req, res) => {
   try {
     const { jobId } = req.body;

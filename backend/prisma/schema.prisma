@@ -14,7 +14,7 @@ model JobPosting {
   company     String
   url         String   @unique
   description String   @db.Text
-  status         String   @default("new") // new | applied | interview | offer | rejected
+  status         String   @default("NEW") // NEW | APPLIED | INTERVIEW | OFFER | REJECTED
   priority_score Int      @default(0)
   source         String   @default("unknown") // indeed | seek | linkedin | manual
   location       String   @default("Sydney")
