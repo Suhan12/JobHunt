@@ -26,6 +26,8 @@ jobs:
           npm install --workspace=backend
 
       - name: Generate Prisma Client
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           npx prisma generate --schema=backend/prisma/schema.prisma
 
