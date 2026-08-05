@@ -123,26 +123,40 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
       _error = null;
     });
 
-    try {
-      final response = await http.get(Uri.parse('$_baseUrl/jobs'));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
-        setState(() {
-          _jobs = data;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _error = 'Failed to load jobs (HTTP ${response.statusCode})';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _error = 'Error connecting to API: $e';
-        _isLoading = false;
-      });
+    String cleanBase = _baseUrl.trim().replaceAll(RegExp(r'/$'), '');
+    if (cleanBase.endsWith('/jobs')) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - 5);
+    } else if (cleanBase.endsWith('/api/jobs')) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - 9);
     }
+
+    final List<String> endpointsToTry = [
+      '$cleanBase/jobs',
+      '$cleanBase/api/jobs',
+    ];
+
+    for (final endpoint in endpointsToTry) {
+      try {
+        final response = await http.get(
+          Uri.parse(endpoint),
+          headers: {'Accept': 'application/json'},
+        );
+        final String bodyText = response.body.trim();
+        if (response.statusCode == 200 && !bodyText.startsWith('<')) {
+          final data = jsonDecode(bodyText) as List;
+          setState(() {
+            _jobs = data;
+            _isLoading = false;
+          });
+          return;
+        }
+      } catch (_) {}
+    }
+
+    setState(() {
+      _error = 'Failed to fetch jobs from API ($cleanBase). Please check backend server status.';
+      _isLoading = false;
+    });
   }
 
   Future<void> _draftCoverLetter(Map<String, dynamic> job) async {
@@ -151,10 +165,20 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
       _generatingState[jobId] = true;
     });
 
+    String cleanBase = _baseUrl.trim().replaceAll(RegExp(r'/$'), '');
+    if (cleanBase.endsWith('/jobs')) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - 5);
+    } else if (cleanBase.endsWith('/api/jobs')) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - 9);
+    }
+
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/generate'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$cleanBase/generate'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({'jobId': jobId}),
       );
 
