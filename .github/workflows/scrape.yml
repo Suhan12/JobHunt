@@ -1,13 +1,13 @@
-name: Daily Job Scraper & AI Tailoring Pipeline
+name: Daily Job Scraper Automation
 
 on:
   schedule:
-    # Run every day at 07:00 AM UTC
-    - cron: '0 7 * * *'
-  workflow_dispatch: # Allows manual triggering from GitHub Actions tab
+    # Run every day at 7:00 AM AEST (21:00 UTC)
+    - cron: '0 21 * * *'
+  workflow_dispatch: # Allows manual runs via GitHub Actions
 
 jobs:
-  scrape-and-process:
+  scrape:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,13 +25,13 @@ jobs:
           npm ci || npm install
           npm install --workspace=backend
 
-      - name: Run Prisma Generate
+      - name: Generate Prisma Client
         run: |
           npx prisma generate --schema=backend/prisma/schema.prisma
 
-      - name: Execute Daily Scraper Script
+      - name: Execute Scraper Engine
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          node backend/src/scraper.js
+          node backend/src/scrape.js
