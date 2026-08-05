@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Stores scraped job postings from various job boards
+model JobPosting {
+  id          String   @id @default(uuid())
+  title       String
+  company     String
+  url         String   @unique
+  description String   @db.Text
+  status      String   @default("new") // new | applied | interview | offer | rejected
+  source      String   @default("unknown") // indeed | seek | linkedin | manual
+  location    String   @default("Sydney")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applications Application[]
+
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+}
+
+/// Stores tailored applications linked to job postings
+model Application {
+  id              String   @id @default(uuid())
+  coverLetter     String   @db.Text
+  resume          String   @db.Text
+  applicationDate DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  jobPostingId String
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+
+  @@index([jobPostingId])
+  @@index([applicationDate])
+}

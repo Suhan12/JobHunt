@@ -1,0 +1,48 @@
+**SUHAN GAUTAM**
+**Data Analyst & AI Specialist**
++61 0411061575 | suhangautam@gmail.com | LinkedIn: linkedin.com/in/suhan-gautam | GitHub: github.com/Suhan12
+
+**CAREER PROFILE**
+Results-driven Data Analyst with strong analytical thinking and experience in advanced analytics, predictive modeling, and data storytelling. Proficient in using statistics, predictive modeling, Python, SQL, and Tableau to drive evidence-based decision making. Passionate about leveraging data insights to optimize systems and efficiency, with a strong focus on security, crisis, and emergency management outcomes.
+
+**EDUCATION**
+* Master of Information Technology (AI & Data Science), University of New South Wales, Sydney (2022 – 2024)
+* Bachelor of Technology (Computer Science and Engineering), Dr. A.P.J Abdul Kalam Technical University (2018 – 2022)
+
+**PROFESSIONAL EXPERIENCE**
+* Data Analyst, Sutherland Shire Council, Sydney NSW (31 March 2025 – Present)
+	+ Managed the extraction and transformation of legacy system data for decommissioning, utilizing data engineering and data management principles for a secure cloud migration.
+	+ Performed data analytics and numerical analysis to profile legacy data, identify anomalies, and implement specialized tools to systematically clean datasets.
+	+ Established enterprise data frameworks, creating data standards, lifecycles, and analytical classification and coding structures to govern council information.
+	+ Transformed complex datasets into actionable business intelligence, leveraging data visualization to build dashboards and reports for stakeholders.
+* Software Trainee, Webomates Inc. USA (April 2022 – August 2022)
+	+ Designed and implemented multiple NLP techniques to improve accuracy for the existing AI model segment which predicts JIRA defects.
+	+ Developed multiple AWS lambda functions in python to create reports and supporting tools for the AI defect predictor.
+* AI Intern, Webomates Inc. USA (October 2021 – April 2022)
+	+ Improved JIRA defect prediction accuracy by 15% through developing multiple Python-based lambda functions.
+
+**KEY PROJECTS**
+* Traffic Sign Recognition System (Feb 2022 – Jun 2022)
+	+ Collected data from Kaggle to be used to train a deep learning network (GTSRB Dataset).
+	+ Researched and implemented multiple pre-trained models for the best accuracy like ResNet-50, VGG16.
+* Eatery Management System, UNSW Capstone Project (Feb 2024 – May 2024)
+	+ Frontend Development: Created a responsive UI with React, delivering a seamless customer experience.
+	+ Backend Development: Utilized Django for backend logic and managed REST API calls to ensure smooth data flow between client and server.
+
+**TECHNICAL SKILLS**
+* Programming: Java, Python, C, C++, JavaScript (React.js, Node.js, Angular.js), PHP
+* Machine Learning & AI: TensorFlow, Keras, Scikit-Learn, NLP, Deep Learning
+* Databases & Visualization: SQL, MongoDB, Tableau, Pandas, Matplotlib
+* Development & Deployment: Django, Flask, Express.js, CodeIgniter, Docker, AWS CLI
+* Software Tools: JIRA, Jupyter Notebook, Anaconda, Git, VS Code
+
+**CERTIFICATIONS**
+* AWS Certified Machine Learning – Specialty
+* Google TensorFlow Developer Certificate
+* Deep Learning Specialization – Coursera
+* Data Science and Big Data Analytics – edX
+
+**REFERENCES**
+* Michael Silas: Ph.D. Global Head of Cybersecurity Science and Analytics Data and Platform Engineering, HSBC
+* Preeti Gupta: Artificial Intelligence Technical Architect, Webomates
+* Sanjeev Sharma: Embedded/Communications Engineer
