@@ -51,8 +51,67 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
   String? _error;
   final Map<String, bool> _generatingState = {};
 
+  String _customApiUrl = '';
+
   String get _baseUrl {
+    if (_customApiUrl.trim().isNotEmpty) {
+      return _customApiUrl.trim().replaceAll(RegExp(r'/$'), '');
+    }
+    // If running in browser and hosted on custom domain (like Render or Cloudflare with backend)
+    if (Uri.base.host.isNotEmpty && Uri.base.host != 'localhost') {
+      return Uri.base.origin;
+    }
     return 'http://localhost:4000';
+  }
+
+  void _showApiSettingsDialog() {
+    final controller = TextEditingController(text: _baseUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Configure Backend API URL', style: TextStyle(color: Color(0xFF38BDF8))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your deployed Render Backend API URL (e.g. https://jobhunt.onrender.com):',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'https://jobhunt.onrender.com',
+                hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                filled: true,
+                fillColor: const Color(0xFF0F172A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _customApiUrl = controller.text.trim();
+              });
+              Navigator.pop(ctx);
+              _fetchJobs();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF0F172A)),
+            child: const Text('Save & Connect', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -315,6 +374,11 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.settings, color: Color(0xFF38BDF8)),
+            onPressed: _showApiSettingsDialog,
+            tooltip: 'Configure Backend API URL',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF38BDF8)),
             onPressed: _fetchJobs,
             tooltip: 'Refresh Listings',
@@ -325,19 +389,42 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8)))
           : _error != null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.cloud_off, size: 64, color: Colors.redAccent),
-                      const SizedBox(height: 16),
-                      Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 16)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _fetchJobs,
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8)),
-                        child: const Text('Retry'),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.cloud_off, size: 64, color: Colors.redAccent),
+                        const SizedBox(height: 16),
+                        Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent, fontSize: 15)),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _showApiSettingsDialog,
+                              icon: const Icon(Icons.settings, size: 18),
+                              label: const Text('Configure Backend URL'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E293B),
+                                foregroundColor: const Color(0xFF38BDF8),
+                                side: const BorderSide(color: Color(0xFF38BDF8)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: _fetchJobs,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Retry'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF38BDF8),
+                                foregroundColor: const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : Column(
