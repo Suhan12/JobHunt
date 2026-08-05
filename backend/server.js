@@ -398,6 +398,35 @@ app.post(["/generate-docx", "/api/generate-docx"], async (req, res) => {
   }
 });
 
+// POST /trigger-scraper — trigger GitHub Actions daily job scraper workflow
+app.post(["/trigger-scraper", "/api/trigger-scraper"], async (_req, res) => {
+  try {
+    const pat = process.env.GITHUB_PAT;
+    if (!pat) {
+      return res.status(400).json({ error: "GITHUB_PAT environment variable is not configured on server." });
+    }
+    const response = await fetch("https://api.github.com/repos/Suhan12/JobHunt/actions/workflows/scrape.yml/dispatches", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "JobHunt-App",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ref: "master" }),
+    });
+
+    if (response.ok || response.status === 204) {
+      res.json({ success: true, message: "GitHub Actions Scraper Workflow triggered successfully!" });
+    } else {
+      const errText = await response.text();
+      res.status(500).json({ error: `GitHub API error (${response.status}): ${errText}` });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, async () => {
   try {
     await prisma.$connect();
@@ -406,6 +435,7 @@ app.listen(PORT, async () => {
     console.log(`   PATCH  /jobs/:id/status   (update job status)`);
     console.log(`   POST   /generate          (draft cover letter via Groq Llama 3.3)`);
     console.log(`   POST   /generate-docx     (export cover letter as Word .docx)`);
+    console.log(`   POST   /trigger-scraper   (trigger GitHub Actions scraper workflow)`);
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
   }

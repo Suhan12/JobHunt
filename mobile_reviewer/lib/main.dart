@@ -299,6 +299,27 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
     );
   }
 
+  bool _isTriggeringScraper = false;
+
+  Future<void> _triggerScraperAutomation() async {
+    setState(() { _isTriggeringScraper = true; });
+    try {
+      final r = await http.post(
+        Uri.parse('$_cleanBase/trigger-scraper'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      );
+      if (r.statusCode == 200) {
+        _snack('🚀 GitHub Actions Scraper triggered! Scraping Indeed, LinkedIn, Glassdoor, Google & Seek...');
+      } else {
+        _snack('Failed to trigger scraper: ${r.body}', isError: true);
+      }
+    } catch (e) {
+      _snack('Error triggering scraper: $e', isError: true);
+    } finally {
+      setState(() { _isTriggeringScraper = false; });
+    }
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────────────
   Color _getPriorityColor(int score) {
     if (score >= 90) return const Color(0xFF10B981);
@@ -326,6 +347,13 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
           Text('JobHunt Reviewer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
         ]),
         actions: [
+          IconButton(
+            icon: _isTriggeringScraper
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFF59E0B)))
+                : const Icon(Icons.bolt, color: Color(0xFFF59E0B)),
+            onPressed: _isTriggeringScraper ? null : _triggerScraperAutomation,
+            tooltip: 'Run Live Scraper Automation (All Sites + Seek)',
+          ),
           IconButton(icon: const Icon(Icons.settings, color: Color(0xFF38BDF8)), onPressed: _showApiSettingsDialog, tooltip: 'API Settings'),
           IconButton(icon: const Icon(Icons.refresh, color: Color(0xFF38BDF8)), onPressed: _fetchJobs, tooltip: 'Refresh'),
         ],
