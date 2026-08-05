@@ -5,8 +5,8 @@
   "description": "JobHunt backend service with Prisma ORM and job scraper",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
+    "dev": "nodemon server.js",
+    "start": "node server.js",
     "scrape": "node src/scrape.js",
     "db:migrate": "npx prisma migrate dev",
     "db:generate": "npx prisma generate",
