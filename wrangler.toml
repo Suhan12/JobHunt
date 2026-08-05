@@ -2,4 +2,4 @@ name = "jobhunt"
 compatibility_date = "2026-08-05"
 
 [assets]
-directory = "mobile_reviewer/build/web"
+directory = "public"
