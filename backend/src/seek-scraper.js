@@ -81,7 +81,20 @@ async function main() {
 
   if (PROXY_URL) {
     console.log(`📡 Configuring proxy server for Playwright`);
-    launchOptions.proxy = { server: PROXY_URL };
+    try {
+      const parsed = new URL(PROXY_URL);
+      if (parsed.username && parsed.password) {
+        launchOptions.proxy = {
+          server: `${parsed.protocol}//${parsed.host}`,
+          username: parsed.username,
+          password: parsed.password,
+        };
+      } else {
+        launchOptions.proxy = { server: PROXY_URL };
+      }
+    } catch (_) {
+      launchOptions.proxy = { server: PROXY_URL };
+    }
   }
 
   const browser = await chromium.launch(launchOptions);

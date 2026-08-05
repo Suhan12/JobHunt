@@ -191,9 +191,20 @@ async function main() {
     "--window-size=1920,1080",
   ];
 
+  let proxyAuth = null;
   if (PROXY_URL) {
     console.log(`📡 Using PROXY_URL: ${PROXY_URL.replace(/:[^:@]+@/, ":***@")}`);
-    puppeteerArgs.push(`--proxy-server=${PROXY_URL}`);
+    try {
+      const parsed = new URL(PROXY_URL);
+      if (parsed.username && parsed.password) {
+        proxyAuth = { username: parsed.username, password: parsed.password };
+        puppeteerArgs.push(`--proxy-server=${parsed.protocol}//${parsed.host}`);
+      } else {
+        puppeteerArgs.push(`--proxy-server=${PROXY_URL}`);
+      }
+    } catch (_) {
+      puppeteerArgs.push(`--proxy-server=${PROXY_URL}`);
+    }
   }
 
   const browser = await puppeteer.launch({
@@ -203,6 +214,9 @@ async function main() {
   });
 
   const page = await browser.newPage();
+  if (proxyAuth) {
+    await page.authenticate(proxyAuth);
+  }
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
   );
