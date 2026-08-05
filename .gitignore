@@ -12,7 +12,8 @@ frontend/out/
 
 # Build
 dist/
-build/
+# build/
+!mobile_reviewer/build/web/
 
 # Prisma
 backend/prisma/*.db
