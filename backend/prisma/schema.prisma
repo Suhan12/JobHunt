@@ -14,15 +14,17 @@ model JobPosting {
   company     String
   url         String   @unique
   description String   @db.Text
-  status      String   @default("new") // new | applied | interview | offer | rejected
-  source      String   @default("unknown") // indeed | seek | linkedin | manual
-  location    String   @default("Sydney")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status         String   @default("new") // new | applied | interview | offer | rejected
+  priority_score Int      @default(0)
+  source         String   @default("unknown") // indeed | seek | linkedin | manual
+  location       String   @default("Sydney")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   applications Application[]
 
   @@index([status])
+  @@index([priority_score])
   @@index([source])
   @@index([createdAt])
 }
