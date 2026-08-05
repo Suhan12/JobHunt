@@ -83,6 +83,9 @@ async function discoverHiringManager(companyName, jobDescription = "") {
   return "Hiring Team";
 }
 
+// Enable CORS for API routes
+app.use(cors());
+
 // ── API Routes ────────────────────────────────────────────────────────
 
 // Health check
