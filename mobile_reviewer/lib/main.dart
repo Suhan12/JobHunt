@@ -82,6 +82,8 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
   final Map<String, bool> _downloadingState = {};
   final Map<String, String> _coverLetters = {};
   final Map<String, TextEditingController> _coverLetterControllers = {};
+  final Map<String, String> _selectedHiringManager = {};
+  final Map<String, TextEditingController> _customHiringManagerControllers = {};
   final Map<String, bool> _expandedCards = {};
 
   String _customApiUrl = '';
@@ -171,15 +173,25 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
     }
   }
 
+  String _getEffectiveHiringManager(String jobId) {
+    final selected = _selectedHiringManager[jobId] ?? '';
+    if (selected == '__custom__') {
+      return _customHiringManagerControllers[jobId]?.text.trim() ?? 'Hiring Manager';
+    }
+    return selected.isNotEmpty ? selected : 'Hiring Manager';
+  }
+
   Future<void> _draftCoverLetter(Map<String, dynamic> job) async {
     final jobId = job['id'] as String;
     setState(() { _generatingState[jobId] = true; });
+
+    final hiringManager = _getEffectiveHiringManager(jobId);
 
     try {
       final r = await http.post(
         Uri.parse('$_cleanBase/generate'),
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: jsonEncode({'jobId': jobId}),
+        body: jsonEncode({'jobId': jobId, 'selectedHiringManager': hiringManager}),
       );
       if (r.statusCode == 200) {
         final result = jsonDecode(r.body);
@@ -552,6 +564,9 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
 
             // ── Action Buttons based on status ──────
             if (isNew) ...[
+              // ── Recipient Dropdown ──────────────
+              _buildRecipientDropdown(job, jobId),
+              const SizedBox(height: 10),
               _actionButton(
                 icon: isGenerating
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F172A)))
@@ -685,6 +700,100 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
           ]),
         ),
       ),
+    );
+  }
+
+  // ── Recipient Dropdown Widget ────────────────────────────────────────────
+  Widget _buildRecipientDropdown(Map<String, dynamic> job, String jobId) {
+    // Build hiring managers list from API data + defaults
+    final List<String> apiManagers = (job['hiringManagers'] as List?)
+        ?.map((e) => e.toString())
+        .where((s) => s.isNotEmpty)
+        .toList() ?? [];
+
+    final Set<String> allOptions = <String>{};
+    allOptions.addAll(apiManagers);
+    allOptions.addAll(['Hiring Manager', 'Recruitment Team']);
+    final optionsList = allOptions.toList();
+
+    final currentSelection = _selectedHiringManager[jobId] ?? optionsList.first;
+    final isCustom = currentSelection == '__custom__';
+
+    // Ensure custom controller exists
+    _customHiringManagerControllers.putIfAbsent(jobId, () => TextEditingController());
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.person_search, size: 16, color: Color(0xFF38BDF8)),
+          const SizedBox(width: 8),
+          const Text('Cover Letter Recipient', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFE2E8F0))),
+        ]),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFF475569)),
+          ),
+          child: DropdownButton<String>(
+            value: (optionsList.contains(currentSelection) || currentSelection == '__custom__') ? currentSelection : optionsList.first,
+            isExpanded: true,
+            dropdownColor: const Color(0xFF1E293B),
+            underline: const SizedBox.shrink(),
+            style: const TextStyle(fontSize: 13, color: Color(0xFFF1F5F9)),
+            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF38BDF8)),
+            items: [
+              ...optionsList.map((m) => DropdownMenuItem(
+                value: m,
+                child: Text(m, style: const TextStyle(fontSize: 13, color: Color(0xFFF1F5F9))),
+              )),
+              const DropdownMenuItem(
+                value: '__custom__',
+                child: Text('Other / Custom...', style: TextStyle(fontSize: 13, color: Color(0xFFF59E0B), fontStyle: FontStyle.italic)),
+              ),
+            ],
+            onChanged: (val) {
+              if (val != null) {
+                setState(() { _selectedHiringManager[jobId] = val; });
+              }
+            },
+          ),
+        ),
+        if (isCustom) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _customHiringManagerControllers[jobId],
+            style: const TextStyle(fontSize: 13, color: Color(0xFFF1F5F9)),
+            decoration: InputDecoration(
+              hintText: 'e.g. Sarah Jones, Head of Analytics',
+              hintStyle: const TextStyle(color: Color(0xFF475569), fontSize: 12),
+              filled: true,
+              fillColor: const Color(0xFF1E293B),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: Color(0xFF475569)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: Color(0xFF475569)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+              ),
+            ),
+          ),
+        ],
+      ]),
     );
   }
 
