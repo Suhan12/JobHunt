@@ -245,6 +245,50 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
     }
   }
 
+  final Map<String, bool> _downloadingPdfState = {};
+
+  Future<void> _downloadPdf(Map<String, dynamic> job) async {
+    final jobId = job['id'] as String;
+    final controller = _coverLetterControllers[jobId];
+    if (controller == null) return;
+
+    setState(() { _downloadingPdfState[jobId] = true; });
+
+    try {
+      final r = await http.post(
+        Uri.parse('$_cleanBase/generate-pdf'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'jobId': jobId,
+          'text': controller.text,
+          'jobTitle': job['title'] ?? '',
+          'companyName': job['company'] ?? '',
+        }),
+      );
+
+      if (r.statusCode == 200) {
+        final bytes = r.bodyBytes;
+        final blob = html.Blob([Uint8List.fromList(bytes)], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final companyClean = (job['company'] ?? 'Cover').toString().replaceAll(RegExp(r'\s+'), '_');
+        final anchor = html.AnchorElement()
+          ..href = url
+          ..download = 'Suhan_Gautam_${companyClean}_Cover_Letter.pdf'
+          ..click();
+        html.Url.revokeObjectUrl(url);
+
+        await _updateJobStatus(jobId, 'COVER_LETTER_SAVED');
+        _snack('PDF document downloaded & status updated!');
+      } else {
+        _snack('PDF generation failed: ${r.body}', isError: true);
+      }
+    } catch (e) {
+      _snack('Error downloading PDF: $e', isError: true);
+    } finally {
+      setState(() { _downloadingPdfState[jobId] = false; });
+    }
+  }
+
   Future<void> _openJobUrl(Map<String, dynamic> job) async {
     final url = job['url'] as String?;
     if (url == null || url.isEmpty) {
@@ -317,6 +361,23 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
       _snack('Error triggering scraper: $e', isError: true);
     } finally {
       setState(() { _isTriggeringScraper = false; });
+    }
+  }
+
+  Color _getSourceColor(String source) {
+    switch (source.toLowerCase()) {
+      case 'seek':
+        return const Color(0xFF38BDF8);
+      case 'linkedin':
+        return const Color(0xFF0A66C2);
+      case 'indeed':
+        return const Color(0xFF60A5FA);
+      case 'glassdoor':
+        return const Color(0xFF34D399);
+      case 'google':
+        return const Color(0xFFFBBF24);
+      default:
+        return const Color(0xFF94A3B8);
     }
   }
 
@@ -409,15 +470,18 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
     final String title = job['title'] ?? 'Untitled';
     final String company = job['company'] ?? 'Unknown';
     final String location = job['location'] ?? 'Sydney';
+    final String source = job['source'] ?? 'Unknown';
     final String status = (job['status'] ?? 'NEW').toString().toUpperCase();
     final bool isGenerating = _generatingState[jobId] ?? false;
-    final bool isDownloading = _downloadingState[jobId] ?? false;
+    final bool isDownloadingDocx = _downloadingState[jobId] ?? false;
+    final bool isDownloadingPdf = _downloadingPdfState[jobId] ?? false;
     final bool isExpanded = _expandedCards[jobId] ?? false;
     final sm = getStatusMeta(status);
 
     final bool isApplied = status == 'APPLIED' || status == 'INTERVIEW' || status == 'OFFER';
     final bool hasCoverLetter = status == 'COVER_LETTER_GENERATED' || status == 'COVER_LETTER_SAVED' || _coverLetters.containsKey(jobId);
     final bool isNew = status == 'NEW' || status == 'REVIEWED';
+    final sourceColor = _getSourceColor(source);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -449,10 +513,25 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
                 const SizedBox(height: 2),
                 Text(company, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF38BDF8))),
                 const SizedBox(height: 6),
-                Row(children: [
-                  const Icon(Icons.location_on, size: 14, color: Color(0xFF64748B)),
-                  const SizedBox(width: 2),
-                  Text(location, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.location_on, size: 14, color: Color(0xFF64748B)),
+                    const SizedBox(width: 2),
+                    Text(location, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                  ]),
+                  // Styled Source Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: sourceColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: sourceColor.withOpacity(0.6), width: 1),
+                    ),
+                    child: Text(
+                      source,
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: sourceColor),
+                    ),
+                  ),
                 ]),
               ])),
               // Status badge
@@ -527,15 +606,23 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
               ],
 
               const SizedBox(height: 10),
-              // ── Button row ─────────────────────
+              // ── Dual Export Button row ───────────
               Wrap(spacing: 8, runSpacing: 8, children: [
                 _smallActionButton(
-                  icon: isDownloading
+                  icon: isDownloadingDocx
                       ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F172A)))
-                      : const Icon(Icons.download, size: 16),
-                  label: 'Save & Download .docx',
+                      : const Icon(Icons.description, size: 16),
+                  label: 'Download DOCX',
                   color: const Color(0xFF06B6D4),
-                  onPressed: isDownloading ? null : () => _downloadDocx(job),
+                  onPressed: isDownloadingDocx ? null : () => _downloadDocx(job),
+                ),
+                _smallActionButton(
+                  icon: isDownloadingPdf
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F172A)))
+                      : const Icon(Icons.picture_as_pdf, size: 16),
+                  label: 'Download PDF',
+                  color: const Color(0xFFEC4899),
+                  onPressed: isDownloadingPdf ? null : () => _downloadPdf(job),
                 ),
                 _smallActionButton(
                   icon: isGenerating
