@@ -302,16 +302,37 @@ class _JobReviewerScreenState extends State<JobReviewerScreen> {
   }
 
   Future<void> _openJobUrl(Map<String, dynamic> job) async {
-    final url = job['url'] as String?;
-    if (url == null || url.isEmpty) {
+    final rawUrl = job['url'] as String?;
+    final title = (job['title'] as String? ?? '').trim();
+    final company = (job['company'] as String? ?? '').trim();
+    final source = (job['source'] as String? ?? '').toLowerCase();
+
+    if (rawUrl == null || rawUrl.isEmpty) {
       _snack('No application URL available', isError: true);
       return;
     }
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      _snack('Could not open: $url', isError: true);
+
+    // Glassdoor anti-bot (Cloudflare WAF) blocks direct external referrers.
+    // Redirect Glassdoor listings to a clean Google Search query that leads directly to the job.
+    String targetUrl = rawUrl;
+    if (source.contains('glassdoor') || rawUrl.contains('glassdoor.com')) {
+      final query = Uri.encodeComponent('$title $company Glassdoor Australia');
+      targetUrl = 'https://www.google.com/search?q=$query';
+    }
+
+    try {
+      final anchor = html.AnchorElement()
+        ..href = targetUrl
+        ..target = '_blank'
+        ..rel = 'noreferrer noopener';
+      anchor.click();
+    } catch (e) {
+      final uri = Uri.parse(targetUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        _snack('Could not open: $targetUrl', isError: true);
+      }
     }
   }
 

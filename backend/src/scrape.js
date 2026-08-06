@@ -147,6 +147,7 @@ function inferHiringManagers(title, description, company) {
 }
 
 /** Generic scraper for search result cards across platforms */
+/** Generic scraper for search result cards across platforms */
 async function scrapeListingsFromPage(page, platformName, baseUrl) {
   return page.evaluate(
     (plat, base) => {
@@ -158,21 +159,18 @@ async function scrapeListingsFromPage(page, platformName, baseUrl) {
       if (p === "indeed") {
         cards = Array.from(document.querySelectorAll(".job_seen_beacon, .resultContent, [data-jk]"));
       } else if (p === "linkedin") {
-        cards = Array.from(document.querySelectorAll(".job-search-card, .base-card, .jobs-search-results__list-item"));
+        cards = Array.from(document.querySelectorAll(".job-search-card, .base-card, .jobs-search-results__list-item, li"));
       } else if (p === "google") {
         cards = Array.from(document.querySelectorAll("[data-encoded-doc-id], .iKj2z, .PcfL2d"));
       } else {
-        cards = Array.from(document.querySelectorAll("[data-test='jobListing'], .JobCard_jobCard___M_D, .job-tile"));
+        cards = Array.from(document.querySelectorAll("[data-test='jobListing'], .JobCard_jobCard___M_D, .job-tile, [class*='JobCard_jobCard']"));
       }
 
       cards.forEach((card) => {
         try {
           const titleEl =
-            card.querySelector("h2.jobTitle a, h2 a, a.job-card-list__title, [class*='title'] a, a[data-jk], h3") ||
+            card.querySelector("h2.jobTitle a, h2 a, a.job-card-list__title, [class*='title'] a, a[data-jk], h3, a.base-card__full-link") ||
             card.querySelector("a");
-
-          const companyEl =
-            card.querySelector("[data-testid='company-name'], .companyName, .job-card-container__company-name, [class*='company']");
 
           if (!titleEl) return;
 
@@ -181,12 +179,80 @@ async function scrapeListingsFromPage(page, platformName, baseUrl) {
           if (href && !href.startsWith("http")) {
             href = `${base}${href}`;
           }
-          const fullUrl = href || `${base}/job-link-${Math.random()}`;
-          const company = companyEl ? companyEl.innerText.trim() : "Company";
+          // Clean tracking params
+          const cleanUrl = href ? href.split("?")[0] : `${base}/job-link-${Math.random()}`;
 
-          if (title && title.length > 2 && !seen.has(fullUrl)) {
-            seen.add(fullUrl);
-            results.push({ title, company, url: fullUrl });
+          // Comprehensive multi-platform company selectors
+          const companySelectors = [
+            "[data-testid='company-name']",
+            ".companyName",
+            ".job-card-container__company-name",
+            "h4.base-search-card__subtitle",
+            ".base-search-card__subtitle",
+            ".job-search-card__subtitle",
+            "a.hidden-nested-link",
+            "[data-test='employer-name']",
+            "[class*='EmployerProfile']",
+            "[class*='employer']",
+            "[class*='compactEmployerName']",
+            ".job-search-key-10w3v8v",
+            "div.vLSpA",
+            "div.LjP2Wc",
+            "[class*='vLSpA']",
+            "[class*='company']",
+            "[class*='Company']",
+            "[class*='subtitle']",
+          ];
+
+          let company = "";
+          for (const sel of companySelectors) {
+            const el = card.querySelector(sel);
+            if (el && el.innerText && el.innerText.trim().length > 0) {
+              company = el.innerText.trim();
+              break;
+            }
+          }
+
+          // Fallback: parse lines from card text if company is still missing or "Company"
+          if (!company || company.toLowerCase() === "company") {
+            const rawText = card.innerText || "";
+            const lines = rawText
+              .split("\n")
+              .map((l) => l.trim())
+              .filter((l) => l.length > 1);
+
+            for (const line of lines) {
+              if (
+                line !== title &&
+                !line.toLowerCase().includes("sydney") &&
+                !line.toLowerCase().includes("australia") &&
+                !line.toLowerCase().includes("easy apply") &&
+                !line.toLowerCase().includes("posted") &&
+                !line.toLowerCase().includes("ago") &&
+                !line.match(/^\d\.\d/)
+              ) {
+                company = line;
+                break;
+              }
+            }
+          }
+
+          // Clean rating numbers / stars (e.g. "Arctic Wolf 3.8 ★" -> "Arctic Wolf")
+          if (company) {
+            company = company
+              .replace(/\s*\d\.\d\s*★?.*/gi, "")
+              .replace(/\s*★.*/gi, "")
+              .replace(/\n.*/g, "")
+              .trim();
+          }
+
+          if (!company || company.toLowerCase() === "company") {
+            company = "Direct Employer";
+          }
+
+          if (title && title.length > 2 && !seen.has(cleanUrl)) {
+            seen.add(cleanUrl);
+            results.push({ title, company, url: cleanUrl });
           }
         } catch (_) {}
       });
@@ -198,25 +264,40 @@ async function scrapeListingsFromPage(page, platformName, baseUrl) {
   );
 }
 
-/** Extract full description from detail page */
+/** Extract full description & detail company name from detail page */
 async function fetchJobDescription(page, url) {
   try {
-    if (!url.startsWith("http")) return "Detailed description available on job board.";
+    if (!url.startsWith("http")) return { description: "Detailed description available on job board.", companyOverride: null };
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
     await randomDelay(1000, 2000);
 
-    const description = await page.evaluate(() => {
+    const detailData = await page.evaluate(() => {
       const el =
         document.querySelector("#jobDescriptionText") ||
         document.querySelector("[class*='description']") ||
         document.querySelector(".show-more-less-html__markup") ||
         document.querySelector(".jobsearch-jobDescriptionText");
-      return el ? el.innerText.trim() : "";
+
+      const companyEl =
+        document.querySelector("[data-testid='inlineHeader-companyName'], .topcard__org-name-link, .top-card-layout__first-sub-text, [data-test='employer-name'], [class*='EmployerProfile'], [class*='employer']");
+
+      let companyName = companyEl ? companyEl.innerText.trim() : null;
+      if (companyName) {
+        companyName = companyName.replace(/\s*\d\.\d\s*★?.*/gi, "").replace(/\s*★.*/gi, "").replace(/\n.*/g, "").trim();
+      }
+
+      return {
+        description: el ? el.innerText.trim() : "",
+        companyOverride: companyName && companyName.toLowerCase() !== "company" ? companyName : null,
+      };
     });
 
-    return description || "Detailed description available on job board.";
+    return {
+      description: detailData.description || "Detailed description available on job board.",
+      companyOverride: detailData.companyOverride,
+    };
   } catch (_) {
-    return "Detailed description available on job board.";
+    return { description: "Detailed description available on job board.", companyOverride: null };
   }
 }
 
@@ -290,26 +371,27 @@ async function main() {
 
         for (const listing of listings.slice(0, 3)) {
           totalScraped++;
-          const description = await fetchJobDescription(page, listing.url);
+          const { description, companyOverride } = await fetchJobDescription(page, listing.url);
+          const finalCompany = (companyOverride || listing.company || "Direct Employer").trim();
           const fullText = `${listing.title} ${description}`;
 
           // ── REGEX FILTER CHECK ──
           if (CITIZENSHIP_PR_DISQUALIFY_REGEX.test(fullText)) {
             totalDropped++;
             const match = fullText.match(CITIZENSHIP_PR_DISQUALIFY_REGEX)[0];
-            console.log(`  ❌ DROPPED [PR/Citizen Restriction: "${match}"]: "${listing.title}" @ ${listing.company}`);
+            console.log(`  ❌ DROPPED [PR/Citizen Restriction: "${match}"]: "${listing.title}" @ ${finalCompany}`);
             continue;
           }
 
           // Calculate priority score — Technology One roles prioritized
           const priorityScore = calculatePriorityScore(listing.title, description, query);
-          const hiringManagers = inferHiringManagers(listing.title, description, listing.company);
+          const hiringManagers = inferHiringManagers(listing.title, description, finalCompany);
 
           const record = await prisma.jobPosting.upsert({
             where: { url: listing.url },
             create: {
               title: listing.title,
-              company: listing.company,
+              company: finalCompany,
               url: listing.url,
               description: description,
               status: "NEW",
@@ -320,7 +402,7 @@ async function main() {
             },
             update: {
               title: listing.title,
-              company: listing.company,
+              company: finalCompany,
               description: description,
               priority_score: priorityScore,
               hiringManagers: hiringManagers,

@@ -193,7 +193,23 @@ async function main() {
               }
               // Clean tracking query params from Seek URLs
               const cleanUrl = href.split("?")[0];
-              const company = companyEl ? companyEl.innerText.trim() : "Company";
+              let company = companyEl ? companyEl.innerText.trim() : "";
+              if (!company || company.toLowerCase() === "company") {
+                const rawText = card.innerText || "";
+                const lines = rawText.split("\n").map((l) => l.trim()).filter((l) => l.length > 1);
+                for (const line of lines) {
+                  if (line !== title && !line.toLowerCase().includes("sydney") && !line.match(/^\d\.\d/)) {
+                    company = line;
+                    break;
+                  }
+                }
+              }
+              if (company) {
+                company = company.replace(/\s*\d\.\d\s*★?.*/gi, "").replace(/\s*★.*/gi, "").replace(/\n.*/g, "").trim();
+              }
+              if (!company || company.toLowerCase() === "company") {
+                company = "Direct Employer";
+              }
 
               if (title && cleanUrl && !seen.has(cleanUrl)) {
                 seen.add(cleanUrl);

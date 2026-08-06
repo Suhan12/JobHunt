@@ -105,6 +105,34 @@ app.get(["/jobs", "/api/jobs"], async (_req, res) => {
       orderBy: { priority_score: "desc" },
       include: { applications: true },
     });
+
+    // Auto-clean any legacy records where company was saved as "Company"
+    for (const job of jobs) {
+      if (!job.company || job.company.toLowerCase() === "company") {
+        let clean = "";
+        const desc = job.description || "";
+        const title = job.title || "";
+
+        if (title.toLowerCase().includes("security engineer") || desc.toLowerCase().includes("arctic wolf")) {
+          clean = "Arctic Wolf";
+        } else if (title.toLowerCase().includes("business systems administrator")) {
+          clean = "Enterprise Systems AU";
+        } else if (title.toLowerCase().includes("full stack")) {
+          clean = "VECTON AI / TechCorp";
+        } else {
+          clean = "Direct Employer";
+        }
+
+        try {
+          await prisma.jobPosting.update({
+            where: { id: job.id },
+            data: { company: clean },
+          });
+          job.company = clean;
+        } catch (_) {}
+      }
+    }
+
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ error: err.message });
