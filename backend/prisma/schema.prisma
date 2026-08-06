@@ -18,6 +18,7 @@ model JobPosting {
   priority_score Int      @default(0)
   source         String   @default("Unknown") // LinkedIn | Indeed | Glassdoor | Google | Seek | Unknown
   location       String   @default("Sydney")
+  hiringManagers Json     @default("[]") // JSON array of probable recipient titles/names
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

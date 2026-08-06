@@ -98,6 +98,54 @@ function calculatePriorityScore(title, description, query) {
   return Math.min(Math.max(score, 0), 100);
 }
 
+/** Infer probable hiring manager names/titles from job title & description */
+function inferHiringManagers(title, description, company) {
+  const managers = [];
+  const text = `${title} ${description}`;
+
+  // 1. Try to extract real names (e.g., "Contact: John Smith", "Report to Sarah Jones")
+  const namePatterns = [
+    /(?:contact|report(?:ing)?\s+to|managed?\s+by|hiring\s+manager|recruiter)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)/gi,
+    /(?:please\s+reach\s+out\s+to|speak\s+with|enquiries?\s+to)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)/gi,
+  ];
+  for (const pattern of namePatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const name = match[1].trim();
+      if (name.length > 4 && name.length < 40 && !managers.includes(name)) {
+        managers.push(name);
+      }
+    }
+  }
+
+  // 2. Infer domain-specific titles based on job title keywords
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes("data") || titleLower.includes("analyst") || titleLower.includes("analytics")) {
+    managers.push("Head of Data & Analytics");
+    managers.push("Data Analytics Lead");
+  }
+  if (titleLower.includes("engineer") || titleLower.includes("developer") || titleLower.includes("software")) {
+    managers.push("Engineering Manager");
+    managers.push("Head of Engineering");
+  }
+  if (titleLower.includes("consultant") || titleLower.includes("advisory")) {
+    managers.push("Consulting Director");
+    managers.push("Practice Lead");
+  }
+  if (titleLower.includes("full stack") || titleLower.includes("fullstack")) {
+    managers.push("Technical Lead");
+  }
+
+  // 3. Always add generic fallbacks
+  managers.push("Hiring Manager");
+  managers.push("Recruitment Manager");
+  managers.push(`${company} Talent Acquisition Team`);
+
+  // Deduplicate and return exactly 5
+  const unique = [...new Set(managers)];
+  return unique.slice(0, 5);
+}
+
 /** Generic scraper for search result cards across platforms */
 async function scrapeListingsFromPage(page, platformName, baseUrl) {
   return page.evaluate(
@@ -255,6 +303,7 @@ async function main() {
 
           // Calculate priority score — Technology One roles prioritized
           const priorityScore = calculatePriorityScore(listing.title, description, query);
+          const hiringManagers = inferHiringManagers(listing.title, description, listing.company);
 
           const record = await prisma.jobPosting.upsert({
             where: { url: listing.url },
@@ -267,12 +316,14 @@ async function main() {
               priority_score: priorityScore,
               source: platform.name,
               location: "Sydney, Australia",
+              hiringManagers: hiringManagers,
             },
             update: {
               title: listing.title,
               company: listing.company,
               description: description,
               priority_score: priorityScore,
+              hiringManagers: hiringManagers,
               updatedAt: new Date(),
             },
           });

@@ -163,7 +163,7 @@ app.patch(["/jobs/:id/status", "/api/jobs/:id/status"], async (req, res) => {
 
 app.post(["/generate", "/api/generate"], async (req, res) => {
   try {
-    const { jobId } = req.body;
+    const { jobId, selectedHiringManager } = req.body;
     if (!jobId) return res.status(400).json({ error: "jobId is required" });
 
     const job = await prisma.jobPosting.findUnique({ where: { id: jobId } });
@@ -171,7 +171,13 @@ app.post(["/generate", "/api/generate"], async (req, res) => {
 
     const resume = fs.existsSync(RESUME_PATH) ? fs.readFileSync(RESUME_PATH, "utf-8") : "Master resume data.";
 
-    const hiringManager = await discoverHiringManager(job.company, job.description);
+    // Use selectedHiringManager if provided, otherwise fall back to auto-discovery
+    let hiringManager;
+    if (selectedHiringManager && selectedHiringManager.trim().length > 0) {
+      hiringManager = selectedHiringManager.trim();
+    } else {
+      hiringManager = await discoverHiringManager(job.company, job.description);
+    }
 
     const systemPrompt = `You are an expert career coach writing a highly detailed, comprehensive, and professional cover letter. The candidate is a Data Analyst currently working at Sutherland Shire Council, holding a Master of Information Technology from UNSW. Their technical stack includes Flutter, Next.js, Node.js, Prisma, PostgreSQL, AWS, and Azure. Map these specific experiences directly to the provided job description. Ensure the output is a multi-paragraph, formal letter, not a brief summary.`;
 

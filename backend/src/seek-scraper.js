@@ -63,6 +63,50 @@ function calculatePriorityScore(title, description, queryName) {
   return Math.min(Math.max(score, 0), 100);
 }
 
+/** Infer probable hiring manager names/titles from job title & description */
+function inferHiringManagers(title, description, company) {
+  const managers = [];
+  const text = `${title} ${description}`;
+
+  const namePatterns = [
+    /(?:contact|report(?:ing)?\s+to|managed?\s+by|hiring\s+manager|recruiter)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)/gi,
+    /(?:please\s+reach\s+out\s+to|speak\s+with|enquiries?\s+to)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)/gi,
+  ];
+  for (const pattern of namePatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const name = match[1].trim();
+      if (name.length > 4 && name.length < 40 && !managers.includes(name)) {
+        managers.push(name);
+      }
+    }
+  }
+
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes("data") || titleLower.includes("analyst") || titleLower.includes("analytics")) {
+    managers.push("Head of Data & Analytics");
+    managers.push("Data Analytics Lead");
+  }
+  if (titleLower.includes("engineer") || titleLower.includes("developer") || titleLower.includes("software")) {
+    managers.push("Engineering Manager");
+    managers.push("Head of Engineering");
+  }
+  if (titleLower.includes("consultant") || titleLower.includes("advisory")) {
+    managers.push("Consulting Director");
+    managers.push("Practice Lead");
+  }
+  if (titleLower.includes("full stack") || titleLower.includes("fullstack")) {
+    managers.push("Technical Lead");
+  }
+
+  managers.push("Hiring Manager");
+  managers.push("Recruitment Manager");
+  managers.push(`${company} Talent Acquisition Team`);
+
+  const unique = [...new Set(managers)];
+  return unique.slice(0, 5);
+}
+
 async function main() {
   console.log("╔══════════════════════════════════════════════════════════╗");
   console.log("║  Seek.com.au Scraper Engine — Playwright Stealth          ║");
@@ -191,6 +235,7 @@ async function main() {
           }
 
           const priorityScore = calculatePriorityScore(listing.title, description, queryName);
+          const hiringManagers = inferHiringManagers(listing.title, description, listing.company);
 
           const record = await prisma.jobPosting.upsert({
             where: { url: listing.url },
@@ -203,12 +248,14 @@ async function main() {
               priority_score: priorityScore,
               source: "Seek",
               location: "Sydney NSW",
+              hiringManagers: hiringManagers,
             },
             update: {
               title: listing.title,
               company: listing.company,
               description: description || "Detailed description available on Seek.",
               priority_score: priorityScore,
+              hiringManagers: hiringManagers,
               updatedAt: new Date(),
             },
           });
