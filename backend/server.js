@@ -398,6 +398,82 @@ app.post(["/generate-docx", "/api/generate-docx"], async (req, res) => {
   }
 });
 
+// POST /generate-pdf — export cover letter as a clean, professional PDF document
+const PDFDocument = require("pdfkit");
+
+app.post(["/generate-pdf", "/api/generate-pdf"], async (req, res) => {
+  try {
+    const { text, coverLetter, jobTitle, companyName, company } = req.body;
+    const letterText = text || coverLetter;
+    if (!letterText) return res.status(400).json({ error: "text or coverLetter is required" });
+
+    const targetCompany = companyName || company || "Company";
+    const filename = `Suhan_Gautam_${targetCompany.replace(/\s+/g, "_")}_Cover_Letter.pdf`;
+
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 54, // 0.75 in margin
+    });
+
+    const buffers = [];
+    doc.on("data", (chunk) => buffers.push(chunk));
+    doc.on("end", () => {
+      const pdfData = Buffer.concat(buffers);
+      res.set({
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Length": pdfData.length,
+      });
+      res.send(pdfData);
+    });
+
+    const lines = letterText.split("\n").filter((l) => l.trim().length > 0);
+    const candidateName = "SUHAN GAUTAM";
+
+    // Header: Candidate Name
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .fillColor("#0F172A")
+      .text(candidateName, { align: "center" });
+
+    // Contact Line
+    const contactLine = lines.find((l) => l.includes("@") || l.includes("☎") || l.includes("+61"));
+    if (contactLine) {
+      doc
+        .font("Helvetica")
+        .fontSize(9)
+        .fillColor("#475569")
+        .text(contactLine, { align: "center" });
+    }
+
+    doc.moveDown(1.2);
+    doc.strokeColor("#CBD5E1").lineWidth(1).moveTo(54, doc.y).lineTo(541, doc.y).stroke();
+    doc.moveDown(1.5);
+
+    // Body Paragraphs
+    doc.font("Helvetica").fontSize(10.5).fillColor("#1E293B");
+
+    for (const line of lines) {
+      if (line === contactLine) continue;
+      if (line.toUpperCase() === candidateName) continue;
+
+      const isSignOff = line.startsWith("Best regards") || line.startsWith("Sincerely") || line.startsWith("Kind regards");
+      const isName = line.trim() === "Suhan Gautam";
+
+      if (isName) {
+        doc.font("Helvetica-Bold").text(line, { lineGap: 3 });
+      } else {
+        doc.font("Helvetica").text(line, { lineGap: 4, paragraphGap: isSignOff ? 3 : 8 });
+      }
+    }
+
+    doc.end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /trigger-scraper — trigger GitHub Actions daily job scraper workflow
 app.post(["/trigger-scraper", "/api/trigger-scraper"], async (_req, res) => {
   try {
@@ -435,6 +511,7 @@ app.listen(PORT, async () => {
     console.log(`   PATCH  /jobs/:id/status   (update job status)`);
     console.log(`   POST   /generate          (draft cover letter via Groq Llama 3.3)`);
     console.log(`   POST   /generate-docx     (export cover letter as Word .docx)`);
+    console.log(`   POST   /generate-pdf      (export cover letter as PDF document)`);
     console.log(`   POST   /trigger-scraper   (trigger GitHub Actions scraper workflow)`);
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);

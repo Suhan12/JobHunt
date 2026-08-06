@@ -16,7 +16,7 @@ model JobPosting {
   description String   @db.Text
   status         String   @default("NEW") // NEW | APPLIED | INTERVIEW | OFFER | REJECTED
   priority_score Int      @default(0)
-  source         String   @default("unknown") // indeed | seek | linkedin | manual
+  source         String   @default("Unknown") // LinkedIn | Indeed | Glassdoor | Google | Seek | Unknown
   location       String   @default("Sydney")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

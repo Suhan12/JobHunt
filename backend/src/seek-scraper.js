@@ -201,7 +201,7 @@ async function main() {
               description: description || "Detailed description available on Seek.",
               status: "NEW",
               priority_score: priorityScore,
-              source: "seek",
+              source: "Seek",
               location: "Sydney NSW",
             },
             update: {

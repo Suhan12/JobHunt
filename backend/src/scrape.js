@@ -37,25 +37,25 @@ const SEARCH_QUERIES = [
 
 const PLATFORMS = [
   {
-    name: "indeed",
+    name: "Indeed",
     baseUrl: "https://au.indeed.com",
     buildUrl: (query, location) =>
       `https://au.indeed.com/jobs?q=${encodeURIComponent(query)}&l=${encodeURIComponent(location)}`,
   },
   {
-    name: "linkedin",
+    name: "LinkedIn",
     baseUrl: "https://au.linkedin.com",
     buildUrl: (query, location) =>
       `https://au.linkedin.com/jobs/search?keywords=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}`,
   },
   {
-    name: "google",
+    name: "Google",
     baseUrl: "https://www.google.com",
     buildUrl: (query, location) =>
       `https://www.google.com/search?q=${encodeURIComponent(query + " jobs " + location + " Australia")}&ibp=htl;jobs`,
   },
   {
-    name: "glassdoor",
+    name: "Glassdoor",
     baseUrl: "https://www.glassdoor.com.au",
     buildUrl: (query, location) =>
       `https://www.glassdoor.com.au/Job/australia-${encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"))}-jobs-SRCH_IL.0,9_IN16_KO10,${10 + query.length}.htm`,
@@ -106,11 +106,12 @@ async function scrapeListingsFromPage(page, platformName, baseUrl) {
       const seen = new Set();
 
       let cards = [];
-      if (plat === "indeed") {
+      const p = plat.toLowerCase();
+      if (p === "indeed") {
         cards = Array.from(document.querySelectorAll(".job_seen_beacon, .resultContent, [data-jk]"));
-      } else if (plat === "linkedin") {
+      } else if (p === "linkedin") {
         cards = Array.from(document.querySelectorAll(".job-search-card, .base-card, .jobs-search-results__list-item"));
-      } else if (plat === "google") {
+      } else if (p === "google") {
         cards = Array.from(document.querySelectorAll("[data-encoded-doc-id], .iKj2z, .PcfL2d"));
       } else {
         cards = Array.from(document.querySelectorAll("[data-test='jobListing'], .JobCard_jobCard___M_D, .job-tile"));
